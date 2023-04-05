@@ -1,25 +1,16 @@
-import s from './ImageGallery.module.css';
-import { Item } from 'components/ImageGalleryItem/ImageGalleryItem';
 import PropTypes from 'prop-types';
+import { ImageGalleryItem } from 'components/ImageGalleryItem/ImageGalleryItem';
+import s from './ImageGallery.module.css';
 
-export const Gallery = ({ images, onClick, Loader }) => {
+export const ImageGallery = ({ pictures, onClick }) => {
   return (
-    <>
-      <ul className={s.imageGallery}>
-        {<Item Loader={Loader} onClick={onClick} images={images} />}
-      </ul>
-    </>
+    <ul className={s.imageGallery}>
+      <ImageGalleryItem images={pictures} onClick={onClick} />
+    </ul>
   );
 };
 
-Gallery.propTypes = {
-  images: PropTypes.arrayOf(
-    PropTypes.shape({
-      id: PropTypes.number.isRequired,
-      webformatURL: PropTypes.string.isRequired,
-      tags: PropTypes.string.isRequired,
-    })
-  ).isRequired,
+ImageGallery.propTypes = {
+  pictures: PropTypes.array.isRequired,
   onClick: PropTypes.func.isRequired,
-  Loader: PropTypes.bool.isRequired,
 };

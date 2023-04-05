@@ -1,123 +1,112 @@
-import { Component } from 'react';
 import axios from 'axios';
-import { SearchBar } from './Searchbar/Searchbar';
-import { Gallery } from './ImageGallery/ImageGallery';
+import { useState, useEffect } from 'react';
+import { Button } from './Button/Button';
+import { ImageGallery } from './ImageGallery/ImageGallery';
 import { Modal } from './Modal/Modal';
-import { LoadMoreBtn } from './Button/Button';
+import { SearchBar } from './Searchbar/Searchbar';
+import { Loader } from './Loader/Loader';
 
 axios.defaults.baseURL = 'https://pixabay.com/api/';
 const MY_KEY = '34195796-6d8ef92c294f12e249c52e8bf';
 
-export class App extends Component {
-  state = {
-    images: [],
-    modalImg: {},
-    search: '',
-    isLoad: false,
-    clickOnLoadMore: false,
-    ModalOpen: false,
-    submited: false,
-    PerPage: 12,
-    Page: 1,
-  };
+export const App = () => {
+  const [pictures, setPictures] = useState([]);
+  const [queryImg, setQueryImg] = useState('');
+  const [isFormSubmit, setIsFormSubmit] = useState(false);
+  const [page, setPage] = useState(1);
+  const [loadMoreClick, setLoadMoreClick] = useState(false);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [isBtnActive, setIsBtnActive] = useState(false);
+  const [loader, setLoader] = useState(false);
+  const [modalImage, setModalImage] = useState('');
 
-  async componentDidUpdate(__, prevState) {
-    if (this.state.submited && prevState.submited !== this.state.submited)
+  useEffect(() => {
+    const fetchImg = async () => {
       try {
-        this.setState({ isLoad: true });
-        const promise = await axios.get(
-          `?key=${MY_KEY}&per_page=12&page=${this.state.Page}&q=${this.state.search}`
-        );
-        const data = promise.data;
-        this.setState({ images: data.hits });
-        this.setState({ isLoad: false });
-        this.setState({ submited: false });
-        return;
-      } catch (error) {
-        return alert('Something wrong');
-      }
-    else if (
-      this.state.Page > 1 &&
-      !this.state.submited &&
-      !this.state.isLoad &&
-      prevState.Page !== this.state.Page
-    ) {
-      try {
-        this.setState({ isLoad: true });
-        const promise = await axios.get(
-          `?key=${MY_KEY}&per_page=12&page=${this.state.Page}&q=${this.state.search}`
-        );
-        const data = promise.data;
-        this.setState(prevState => ({
-          images: [...prevState.images, ...data.hits],
-        }));
-        this.setState({ isLoad: false });
-      } catch (error) {
-        alert('Something wrong');
-      }
-    }
-  }
+        if (isFormSubmit) {
+          const response = await axios.get(
+            `?q=${queryImg}&page=1&key=${MY_KEY}&image_type=photo&orientation=horizontal&per_page=12`
+          );
+          setPictures(response.data.hits);
+          setIsFormSubmit(false);
+          setIsBtnActive(true);
+          setLoader(false);
+          setPage(1);
 
-  componentWillUnmount() {
-    window.removeEventListener('keydown', this.handleKeyDown);
-  }
-  handleReadInput = e => {
-    this.setState({ search: e.target.value });
-  };
-  handleSubmit = e => {
+          if (response.data.hits.length < 12) {
+            setIsBtnActive(false);
+          }
+        }
+
+        if (loadMoreClick) {
+          const response = await axios.get(
+            `?q=${queryImg}&page=${page}&key=${MY_KEY}&image_type=photo&orientation=horizontal&per_page=12`
+          );
+          setPictures([...pictures, ...response.data.hits]);
+          setLoadMoreClick(false);
+          setLoader(false);
+
+          if (response.data.hits.length < 12) {
+            setIsBtnActive(false);
+          }
+        }
+      } catch (error) {
+        console.log(error);
+      }
+    };
+    fetchImg();
+  }, [isFormSubmit, queryImg, loadMoreClick, page, pictures]);
+
+  useEffect(() => window.removeEventListener('keydown', handleModalClose));
+
+  const handleSubmitClick = e => {
     e.preventDefault();
-    this.setState({ Page: 1 });
-    this.setState({ submited: true });
-    this.setState({ clickOnLoadMore: true });
+    const inputValue = e.target.children[1].value;
+    setQueryImg(inputValue);
+    setIsFormSubmit(true);
+    setLoader(true);
   };
 
-  handleClickImg = e => {
-    if (e.currentTarget.nodeName === 'LI' || e.target.nodeName === 'DIV') {
-      this.setState(state => ({ ModalOpen: !state.ModalOpen }));
-      const imageId = e.currentTarget.id;
-      const image = this.state.images.find(
-        image => image.id === Number(imageId)
-      );
-      this.setState({ modalImg: { ...image } });
-      window.addEventListener('keydown', this.handleKeyDown);
-    }
+  const handleBtnLoadMoreClick = () => {
+    setLoadMoreClick(true);
+    setPage(page + 1);
+    setLoader(true);
   };
-  handleKeyDown = e => {
-    if (e.keyCode === 27) {
-      this.setState({ ModalOpen: false });
-    }
-  };
-  handleLoadMore = async () => {
-    this.setState(prev => ({ Page: prev.Page + 1 }));
-  };
-  render() {
-    const { isLoad } = this.state;
-    const { largeImageURL } = this.state.modalImg;
 
-    return (
-      <>
-        <SearchBar
-          onSubmit={this.handleSubmit}
-          onChange={this.handleReadInput}
-        />
-        <Gallery
-          images={this.state.images}
-          onClick={this.handleClickImg}
-          Loader={isLoad}
-        />
+  const handleModalOpen = e => {
+    setModalOpen(!modalOpen);
 
-        {this.state.clickOnLoadMore ? (
-          <LoadMoreBtn onClick={this.handleLoadMore} />
-        ) : (
-          ''
-        )}
-
-        {this.state.ModalOpen ? (
-          <Modal Image={largeImageURL} onClick={this.handleClickImg} />
-        ) : (
-          ''
-        )}
-      </>
+    const imgId = e.currentTarget.attributes.id.value;
+    const largeImage = setPictures(
+      pictures.find(picture => picture.id === +imgId)
     );
-  }
-}
+    setModalImage(largeImage.largeImageURL);
+
+    window.addEventListener('keydown', handleModalClose);
+  };
+
+  const handleModalClose = e => {
+    if (e.key === 'Escape') {
+      setModalOpen(false);
+    }
+    window.removeEventListener('keydown', handleModalClose);
+  };
+
+  const closeModalWindow = e => {
+    if (e.target === e.currentTarget) {
+      setModalOpen(false);
+    }
+  };
+
+  return (
+    <div>
+      <SearchBar onSubmit={handleSubmitClick} />
+      <ImageGallery pictures={pictures} onClick={handleModalOpen} />
+      {loader && <Loader />}
+      {isBtnActive && <Button onClick={handleBtnLoadMoreClick} />}
+      {modalOpen && (
+        <Modal closeModal={closeModalWindow} largeImage={modalImage} />
+      )}
+    </div>
+  );
+};
